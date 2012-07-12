@@ -7,7 +7,7 @@ module MultiDb
     delegate :[], :[]=, :to => :items
     tlattr_accessor :current_index, true
     
-    def initialize(items, blacklist_timeout = 1.minute)
+    def initialize(items, blacklist_timeout = 30.seconds)
       @n = items.length
       @items     = items
       @blacklist = Array.new(@n, Time.at(0))
