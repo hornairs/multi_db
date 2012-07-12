@@ -13,7 +13,7 @@ module MultiDb
       :disconnect!, :reset_runtime, :log, :log_info, :table_exists?,
       :sanitize_limit, :quote_table_name, :ids_in_list_limit, :quote,
       :quote_column_name, :prefetch_primary_key?, :case_sensitive_equality_operator,
-      :table_alias_for]
+      :table_alias_for, :columns, :indexes ]
 
     if ActiveRecord.const_defined?(:SessionStore) # >= Rails 2.3
       DEFAULT_MASTER_MODELS = ['ActiveRecord::SessionStore::Session']
@@ -192,7 +192,6 @@ module MultiDb
     end
 
     def send_to_master(method, *args, &block)
-      puts "X:#{method}:#{Thread.current[:session].inspect}"
       reconnect_master! if @reconnect
       @master.retrieve_connection.send(method, *args, &block)
     rescue => e
