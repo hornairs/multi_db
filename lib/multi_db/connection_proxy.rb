@@ -181,7 +181,12 @@ module MultiDb
 
     def sticky_and_send_to_master(method, *args, &block)
       unless NONCOMMUNICATING_MASTER_METHODS.include?(method)
-        Thread.current[:session][:multidb_sticky_master_until] = Time.now + MAX_REPLICATION_LAG.seconds
+        timeout = Time.now + MAX_REPLICATION_LAG.seconds
+        if sess = Thread.current[:session]
+          sess[:multidb_sticky_master_until] = timeout
+        else
+          Thread.current[:multidb_sticky_master_until] = timeout
+        end
       end
       send_to_master(method, *args, &block)
     end
@@ -195,7 +200,11 @@ module MultiDb
     end
 
     def needs_sticky_master?
-      timeout = Thread.current[:session].try(:[], :multidb_sticky_master_until)
+      if sess = Thread.current[:session]
+        timeout = sess[:multidb_sticky_master_until]
+      else
+        timeout = Thread.current[:multidb_sticky_master_until]
+      end
       timeout && timeout > Time.now
     end
 
