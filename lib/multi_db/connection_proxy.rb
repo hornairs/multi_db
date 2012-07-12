@@ -171,19 +171,39 @@ module MultiDb
         end
       }, __FILE__, __LINE__
     end
-    
+
     def target_method(method)
-      unsafe?(method) ? :send_to_master : :send_to_current
+      unsafe?(method) ? :sticky_and_send_to_master : :send_to_current
     end
-    
+
+    NONCOMMUNICATING_MASTER_METHODS = [:open_transactions]
+    MAX_REPLICATION_LAG = 1
+
+    def sticky_and_send_to_master(method, *args, &block)
+      unless NONCOMMUNICATING_MASTER_METHODS.include?(method)
+        Thread.current[:session][:multidb_sticky_master_until] = Time.now + MAX_REPLICATION_LAG.seconds
+      end
+      send_to_master(method, *args, &block)
+    end
+
     def send_to_master(method, *args, &block)
+      puts "X:#{method}:#{Thread.current[:session].inspect}"
       reconnect_master! if @reconnect
       @master.retrieve_connection.send(method, *args, &block)
     rescue => e
       raise_master_error(e)
     end
-    
+
+    def needs_sticky_master?
+      timeout = Thread.current[:session].try(:[], :multidb_sticky_master_until)
+      timeout && timeout > Time.now
+    end
+
     def send_to_current(method, *args, &block)
+      if needs_sticky_master?
+        return send_to_master(method, *args, &block)
+      end
+
       reconnect_master! if @reconnect && master?
       current.retrieve_connection.send(method, *args, &block)
     rescue NotImplementedError, NoMethodError
