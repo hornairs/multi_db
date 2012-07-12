@@ -5,12 +5,15 @@ module MultiDb
     include ActiveRecord::ConnectionAdapters::QueryCache
     include QueryCacheCompat
     extend ThreadLocalAccessors
-    
+
     # Safe methods are those that should either go to the slave ONLY or go
     # to the current active connection.
-    SAFE_METHODS = [ :select_all, :select_one, :select_value, :select_values, 
+    SAFE_METHODS = [ :select_all, :select_one, :select_value, :select_values,
       :select_rows, :select, :verify!, :raw_connection, :active?, :reconnect!,
-      :disconnect!, :reset_runtime, :log, :log_info ]
+      :disconnect!, :reset_runtime, :log, :log_info, :table_exists?,
+      :sanitize_limit, :quote_table_name, :ids_in_list_limit, :quote,
+      :quote_column_name, :prefetch_primary_key?, :case_sensitive_equality_operator,
+      :table_alias_for]
 
     if ActiveRecord.const_defined?(:SessionStore) # >= Rails 2.3
       DEFAULT_MASTER_MODELS = ['ActiveRecord::SessionStore::Session']
