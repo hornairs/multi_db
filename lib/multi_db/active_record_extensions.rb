@@ -5,6 +5,7 @@ module MultiDb
       base.send :extend, ClassMethods
       base.cattr_accessor :connection_proxy
       # handle subclasses which were defined by the framework or plugins
+      base.hijack_connection
       base.send(:descendants).each do |child|
         child.hijack_connection
       end
