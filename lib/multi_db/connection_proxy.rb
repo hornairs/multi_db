@@ -173,7 +173,7 @@ module MultiDb
     end
 
     def target_method(method)
-      if unsafe?(method) || LagMonitor.all_reads_from_master?
+      if unsafe?(method) || LagMonitor.all_reads_from_master?(slave)
         :sticky_and_send_to_master
       else
         :send_to_current
@@ -184,7 +184,7 @@ module MultiDb
 
     def sticky_and_send_to_master(method, *args, &block)
       unless NONCOMMUNICATING_MASTER_METHODS.include?(method)
-        duration = LagMonitor.sticky_master_duration.seconds
+        duration = LagMonitor.sticky_master_duration(slave).seconds
         timeout = Time.now + duration
         if sess = Thread.current[:session]
           sess[:multidb_sticky_master_until] = timeout
@@ -254,3 +254,4 @@ module MultiDb
 
   end
 end
+
