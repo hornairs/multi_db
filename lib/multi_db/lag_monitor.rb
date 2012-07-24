@@ -22,7 +22,7 @@ module MultiDb
       return 0 if current == ActiveRecord::Base # master behind master? unlikely.
 
       Rails.cache.fetch("slave_lag:#{current.name}", :expires_in => 10.seconds) {
-        actual_slave_lag(current)
+        actual_slave_lag(current.connection)
       }
     end
 
