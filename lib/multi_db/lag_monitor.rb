@@ -22,14 +22,14 @@ module MultiDb
       return 0 if current == ActiveRecord::Base # master behind master? unlikely.
 
       Rails.cache.fetch("slave_lag:#{current.name}", :expires_in => 10.seconds) {
-        actual_slave_lag(current.connection)
+        actual_slave_lag(current.retrieve_connection)
       }
     end
 
     def self.actual_slave_lag(connection)
       result = connection.execute("SHOW SLAVE STATUS")
       index = result.fields.index("Seconds_Behind_Master")
-      result[0].try(:[], index).to_i
+      result.first.try(:[], index).to_i
     end
 
   end
