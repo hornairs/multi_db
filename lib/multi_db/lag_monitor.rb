@@ -28,7 +28,6 @@ module MultiDb
     def self.actual_slave_lag(connection)
       result = connection.execute("SHOW SLAVE STATUS")
       index = result.fields.index("Seconds_Behind_Master")
-      return 9
       result.first.try(:[], index).to_i
     end
 
