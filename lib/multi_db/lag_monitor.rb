@@ -1,8 +1,6 @@
 module MultiDb
   module LagMonitor
 
-    # TODO statsd
-
     # How long, after doing a write, should all reads be sent to the master?
     def self.sticky_master_duration(connection) # in seconds
       # these factors are largely arbitrary. the 1 exists so that even
@@ -25,10 +23,20 @@ module MultiDb
       }
     end
 
+    def self.report_lag_statistic(lag)
+      return unless defined?(StatsD)
+      key = "Rwsplit.slaveLag"
+      StatsD.write(key, lag * 1000, :ms)
+    end
+
     def self.actual_slave_lag(connection)
       result = connection.execute("SHOW SLAVE STATUS")
       index = result.fields.index("Seconds_Behind_Master")
-      result.first.try(:[], index).to_i
+      lag = result.first.try(:[], index).to_i
+
+      report_lag_statistic(lag)
+
+      lag
     end
 
   end
