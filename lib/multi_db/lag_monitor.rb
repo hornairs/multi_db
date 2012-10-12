@@ -1,18 +1,23 @@
 module MultiDb
   module LagMonitor
 
+    # There's no especially solid reasoning behind these factors.
+    # STICKY_DURATION_PADDING ensures that even if a slave is reporting
+    # no latency, we still bank on there being a little bit.
+    REPLICA_LAG_THRESHOLD      = 20 # seconds
+    STICKY_DURATION_MULTIPLIER = 1.2 # coefficient
+    STICKY_DURATION_PADDING    = 0.5 # seconds
+
     # How long, after doing a write, should all reads be sent to the master?
     def self.sticky_master_duration(connection) # in seconds
-      # these factors are largely arbitrary. the 1 exists so that even
-      # if the slave is reporting no lag, we still do the next reads from master.
-      (slave_lag(connection) * 1.4) + 1
+      (slave_lag(connection) * STICKY_DURATION_MULTIPLIER) + STICKY_DURATION_PADDING
     end
 
     # In exceptionally slow replication scenarios, we'd rather just redirect
     # everything to master and fail hard than show especially inconsistent
     # application state.
     def self.replication_lag_too_high?(connection)
-      slave_lag(connection) > 20
+      slave_lag(connection) > REPLICA_LAG_THRESHOLD
     end
 
     private
