@@ -11,7 +11,7 @@ module MultiDb
     # In exceptionally slow replication scenarios, we'd rather just redirect
     # everything to master and fail hard than show especially inconsistent
     # application state.
-    def self.all_reads_from_master?(connection)
+    def self.replication_lag_too_high?(connection)
       slave_lag(connection) > 20
     end
 

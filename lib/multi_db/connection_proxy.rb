@@ -173,11 +173,17 @@ module MultiDb
     end
 
     def target_method(method)
-      if unsafe?(method) || LagMonitor.all_reads_from_master?(slave)
-        :sticky_and_send_to_master
-      else
-        :send_to_current
+      return :sticky_and_send_to_master if unsafe?(method)
+
+      # This will, as a worst case, terminate when we give up on
+      # slaves and set current to master, since master always has
+      # replica lag of 0.
+      while LagMonitor.replication_lag_too_high?(current)
+        @slaves.blacklist!(current)
+        next_reader!
       end
+
+      :send_to_current
     end
 
     NONCOMMUNICATING_MASTER_METHODS = [:open_transactions]
