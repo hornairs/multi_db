@@ -30,7 +30,7 @@ module MultiDb
 
     def self.report_lag_statistic(lag)
       return unless defined?(StatsD)
-      key = "Rwsplit.slaveLag"
+      key = "MultiDb.slaveLag"
       StatsD.write(key, lag * 1000, :ms)
     end
 

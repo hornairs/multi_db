@@ -202,6 +202,7 @@ module MultiDb
     end
 
     def send_to_master(method, *args, &block)
+      StatsD.increment("MultiDB.queries.master", 1, 0.01)
       reconnect_master! if @reconnect
       @master.retrieve_connection.send(method, *args, &block)
     rescue => e
@@ -220,6 +221,17 @@ module MultiDb
     def send_to_current(method, *args, &block)
       if needs_sticky_master?
         return send_to_master(method, *args, &block)
+      end
+
+      StatsD.increment("MultiDB.queries.#{current.name}", 1, 0.01)
+
+      if MultiDb.config.only_profile?
+        begin
+          reconnect_master! if @reconnect
+          return @master.retrieve_connection.send(method, *args, &block)
+        rescue => e
+          raise_master_error(e)
+        end
       end
 
       reconnect_master! if @reconnect && master?
