@@ -15,6 +15,14 @@ module MultiDb
       :quote_column_name, :prefetch_primary_key?, :case_sensitive_equality_operator,
       :table_alias_for, :columns, :indexes ]
 
+    IGNORABLE_METHODS = %w(
+      log log_info sanitize_limit quote_table_name quote quote_column_name
+      prefetch_primary_key?  case_sensitive_equality_operator table_alias_for
+    ).inject({}) { |acc, val|
+      acc[val.to_sym] = true
+      acc
+    }.freeze
+
     if ActiveRecord.const_defined?(:SessionStore) # >= Rails 2.3
       DEFAULT_MASTER_MODELS = ['ActiveRecord::SessionStore::Session']
     else # =< Rails 2.3
@@ -202,11 +210,16 @@ module MultiDb
     end
 
     def send_to_master(method, *args, &block)
-      StatsD.increment("MultiDB.queries.master", 1, 0.01)
+      record_statistic(method, "master")
       reconnect_master! if @reconnect
       @master.retrieve_connection.send(method, *args, &block)
     rescue => e
       raise_master_error(e)
+    end
+
+    def record_statistic(method, connection)
+      return if IGNORABLE_METHODS[method]
+      StatsD.increment("MultiDB.queries.#{connection}", 1, 0.01)
     end
 
     def needs_sticky_master?
@@ -223,7 +236,7 @@ module MultiDb
         return send_to_master(method, *args, &block)
       end
 
-      StatsD.increment("MultiDB.queries.#{current.name}", 1, 0.01)
+      record_statistic(method, current.name)
 
       if MultiDb.config.only_profile?
         begin
