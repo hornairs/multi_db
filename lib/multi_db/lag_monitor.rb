@@ -23,9 +23,19 @@ module MultiDb
     private
 
     def self.slave_lag(klass)
-      Rails.cache.fetch("slave_lag:#{klass.name}", :expires_in => 10.seconds) {
+      cache_fetch("slave_lag:#{klass.name}") {
         actual_slave_lag(klass.retrieve_connection)
       }
+    end
+
+    def self.cache_fetch(key, expiry = 10.seconds, &block)
+      @lag_cache ||= {}
+      value, expire_time = @lag_cache[key]
+      if expire_time.nil? || expire_time < Time.now
+        value = Rails.cache.fetch(key, :expires_in => expiry / 2, &block)
+        @lag_cache[key] = [value, Time.now + expiry]
+      end
+      value
     end
 
     def self.report_lag_statistic(lag)
