@@ -233,7 +233,9 @@ module MultiDb
 
     def send_to_current(method, *args, &block)
       if needs_sticky_master?
-        return send_to_master(method, *args, &block)
+        with_master do
+          return send_to_master(method, *args, &block)
+        end
       end
 
       record_statistic(method, current.name)
