@@ -182,6 +182,11 @@ module MultiDb
 
     def target_method(method)
       return :sticky_and_send_to_master if unsafe?(method)
+      # when running in test with transactional fixtures, we need to
+      # basically run everything against the same connection to make anything work.
+      # So it's gross that we have to basically not test this, but
+      # transactional fixtures literally ruin everything.
+      return :send_to_master if Rails.env.test?
 
       # This will, as a worst case, terminate when we give up on
       # slaves and set current to master, since master always has
@@ -212,7 +217,11 @@ module MultiDb
     def send_to_master(method, *args, &block)
       record_statistic(method, "master")
       reconnect_master! if @reconnect
-      @master.retrieve_connection.send(method, *args, &block)
+      with_master do
+        @master.retrieve_connection.send(method, *args, &block)
+      end
+    rescue NotImplementedError, NoMethodError
+      raise
     rescue => e
       raise_master_error(e)
     end
@@ -239,15 +248,6 @@ module MultiDb
       end
 
       record_statistic(method, current.name)
-
-      if MultiDb.config.only_profile?
-        begin
-          reconnect_master! if @reconnect
-          return @master.retrieve_connection.send(method, *args, &block)
-        rescue => e
-          raise_master_error(e)
-        end
-      end
 
       reconnect_master! if @reconnect && master?
       current.retrieve_connection.send(method, *args, &block)
