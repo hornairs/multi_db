@@ -205,7 +205,7 @@ module MultiDb
       unless NONCOMMUNICATING_MASTER_METHODS.include?(method)
         duration = LagMonitor.sticky_master_duration(slave).seconds
         timeout = Time.now + duration
-        if sess = Thread.current[:session]
+        if sess = Thread.current[:get_session].try(:call)
           sess[:multidb_sticky_master_until] = timeout
         else
           Thread.current[:multidb_sticky_master_until] = timeout
@@ -232,7 +232,7 @@ module MultiDb
     end
 
     def needs_sticky_master?
-      if sess = Thread.current[:session]
+      if sess = Thread.current[:get_session].try(:call)
         timeout = sess[:multidb_sticky_master_until]
       else
         timeout = Thread.current[:multidb_sticky_master_until]
@@ -250,7 +250,11 @@ module MultiDb
       record_statistic(method, current.name)
 
       reconnect_master! if @reconnect && master?
-      current.retrieve_connection.send(method, *args, &block)
+      if Rails.env.test?
+        @master.retrieve_connection.send(method, *args, &block)
+      else
+        current.retrieve_connection.send(method, *args, &block)
+      end
     rescue NotImplementedError, NoMethodError
       raise
     rescue => e # TODO don't rescue everything
