@@ -201,6 +201,8 @@ module MultiDb
 
     NONCOMMUNICATING_MASTER_METHODS = [:open_transactions]
 
+    RECONNECT_EXCEPTIONS = [ActiveRecord::ConnectionNotEstablished]
+
     def sticky_and_send_to_master(method, *args, &block)
       unless NONCOMMUNICATING_MASTER_METHODS.include?(method)
         duration = LagMonitor.sticky_master_duration(slave).seconds
@@ -220,10 +222,14 @@ module MultiDb
       with_master do
         @master.retrieve_connection.send(method, *args, &block)
       end
-    rescue NotImplementedError, NoMethodError
-      raise
-    rescue => e
+    rescue *RECONNECT_EXCEPTIONS => e
       raise_master_error(e)
+    rescue ActiveRecord::StatementInvalid => e
+      if e.message =~ /server has gone away/
+        raise_master_error(e)
+      else
+        raise
+      end
     end
 
     def record_statistic(method, connection)
@@ -255,9 +261,11 @@ module MultiDb
       else
         current.retrieve_connection.send(method, *args, &block)
       end
-    rescue NotImplementedError, NoMethodError
-      raise
-    rescue => e # TODO don't rescue everything
+    rescue *RECONNECT_EXCEPTIONS, ActiveRecord::StatementInvalid => e
+      if e.class == ActiveRecord::StatementInvalid && e.message !~ /server has gone away/
+        raise
+      end
+
       raise_master_error(e) if master?
       logger.warn "[MULTIDB] Error reading from slave database"
       logger.error %(#{e.message}\n#{e.backtrace.join("\n")})
