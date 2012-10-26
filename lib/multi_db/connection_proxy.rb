@@ -176,7 +176,6 @@ module MultiDb
     def create_delegation_method!(method)
       self.instance_eval %Q{
         def #{method}(*args, &block)
-          next_reader! if rand < 0.02
           #{target_method(method)}(:#{method}, *args, &block)
         end
       }, __FILE__, __LINE__
