@@ -8,12 +8,17 @@ module MultiDb
 
     # Safe methods are those that should either go to the slave ONLY or go
     # to the current active connection.
-    SAFE_METHODS = [ :select_all, :select_one, :select_value, :select_values,
-      :select_rows, :select, :verify!, :raw_connection, :active?, :reconnect!,
-      :disconnect!, :reset_runtime, :log, :log_info, :table_exists?,
-      :sanitize_limit, :quote_table_name, :ids_in_list_limit, :quote,
-      :quote_column_name, :prefetch_primary_key?, :case_sensitive_equality_operator,
-      :table_alias_for, :columns, :indexes ]
+    SAFE_METHODS = %w(
+      select_all select_one select_value select_values
+      select_rows select verify! raw_connection active? reconnect!
+      disconnect! reset_runtime log log_info table_exists?
+      sanitize_limit quote_table_name ids_in_list_limit quote
+      quote_column_name prefetch_primary_key? case_sensitive_equality_operator
+      table_alias_for columns indexes
+    ).inject({}) { |acc,v|
+      acc[v.to_sym]=true
+      acc
+    }.freeze
 
     IGNORABLE_METHODS = %w(
       log log_info sanitize_limit quote_table_name quote quote_column_name
@@ -181,7 +186,7 @@ module MultiDb
     end
 
     def target_method(method)
-      return :sticky_and_send_to_master if unsafe?(method)
+      return :send_to_master if unsafe?(method)
       # when running in test with transactional fixtures, we need to
       # basically run everything against the same connection to make anything work.
       # So it's gross that we have to basically not test this, but
@@ -199,24 +204,24 @@ module MultiDb
       :send_to_current
     end
 
-    NONCOMMUNICATING_MASTER_METHODS = [:open_transactions]
+    NONCOMMUNICATING_MASTER_METHODS = [:open_transactions, :add_transaction_record]
 
     RECONNECT_EXCEPTIONS = [ActiveRecord::ConnectionNotEstablished]
 
-    def sticky_and_send_to_master(method, *args, &block)
-      unless NONCOMMUNICATING_MASTER_METHODS.include?(method)
-        duration = LagMonitor.sticky_master_duration(slave).seconds
-        timeout = Time.now + duration
-        if sess = Thread.current[:get_session].try(:call)
-          sess[:multidb_sticky_master_until] = timeout
-        else
-          Thread.current[:multidb_sticky_master_until] = timeout
-        end
-      end
-      send_to_master(method, *args, &block)
+    def stickify(method, sql)
+      return if NONCOMMUNICATING_MASTER_METHODS.include?(method)
+      return unless String === sql
+
+      sess = Thread.current[:get_session].try(:call)
+      sess ||= Thread.current # if not in a http request, just store in Thread.current
+
+      duration = LagMonitor.sticky_master_duration(slave).seconds
+      QueryAnalyzer.mark_sticky_tables_in_session(sess, sql, duration)
     end
 
     def send_to_master(method, *args, &block)
+      stickify(method, args[0]) if unsafe?(method)
+
       record_statistic(method, "master")
       reconnect_master! if @reconnect
       with_master do
@@ -237,17 +242,17 @@ module MultiDb
       StatsD.increment("MultiDB.queries.#{connection}", 1, 0.01)
     end
 
-    def needs_sticky_master?
-      if sess = Thread.current[:get_session].try(:call)
-        timeout = sess[:multidb_sticky_master_until]
-      else
-        timeout = Thread.current[:multidb_sticky_master_until]
-      end
-      timeout && timeout > Time.now
+    def needs_sticky_master?(method, sql)
+      return false unless String === sql
+
+      sess = Thread.current[:get_session].try(:call)
+      sess ||= Thread.current
+
+      QueryAnalyzer.query_requires_sticky?(sess, sql)
     end
 
     def send_to_current(method, *args, &block)
-      if needs_sticky_master?
+      if needs_sticky_master?(method, args[0])
         with_master do
           return send_to_master(method, *args, &block)
         end
@@ -286,7 +291,7 @@ module MultiDb
     end
 
     def unsafe?(method)
-      !SAFE_METHODS.include?(method)
+      !SAFE_METHODS[method]
     end
 
     def master?

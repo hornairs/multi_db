@@ -69,7 +69,7 @@ describe MultiDb::QueryAnalyzer do
       session.should == exp
     end
 
-    it "adds stickies to an existing session" do
+    it "adds stickies to an existing session and purges expired stickies" do
       prev = {
         sticky_expires: CURRENT_TIME-100,
         sticky_tables: {
