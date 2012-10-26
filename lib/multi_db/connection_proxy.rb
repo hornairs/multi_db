@@ -15,8 +15,8 @@ module MultiDb
       sanitize_limit quote_table_name ids_in_list_limit quote
       quote_column_name prefetch_primary_key? case_sensitive_equality_operator
       table_alias_for columns indexes
-    ).inject({}) { |acc,v|
-      acc[v.to_sym]=true
+    ).inject({}) { |acc, val|
+      acc[val.to_sym]=true
       acc
     }.freeze
 
@@ -50,12 +50,6 @@ module MultiDb
       #  MultiDb::ConnectionProxy.master_models = ['MySessionStore', 'PaymentTransaction']
       attr_accessor :master_models
 
-      # decides if we should switch to the next reader automatically.
-      # If set to false, an after|before_filter in the ApplicationController
-      # has to do this.
-      # This will not affect failover if a master is unavailable.
-      attr_accessor :sticky_slave
-
       # if master should be the default db
       attr_accessor :defaults_to_master
 
@@ -64,7 +58,6 @@ module MultiDb
       def setup!(scheduler = Scheduler)
         self.master_models ||= DEFAULT_MASTER_MODELS
         self.environment   ||= (defined?(Rails) ? Rails.env : 'development')
-        self.sticky_slave  ||= false
 
         master = ActiveRecord::Base
         slaves = init_slaves
@@ -85,25 +78,29 @@ module MultiDb
       #   production_slave_database_someserver:
       # These would be available later as MultiDb::SlaveDatabaseSomeserver
       def init_slaves
-        [].tap do |slaves|
-          ActiveRecord::Base.configurations.each do |name, values|
-            if name.to_s =~ /#{self.environment}_(slave_database.*)/
-              weight  = if values['weight'].blank?
-                          1
-                        else
-                          (v=values['weight'].to_i.abs).zero?? 1 : v
-                        end
-              MultiDb.module_eval %Q{
-                class #{$1.camelize} < ActiveRecord::Base
-                  self.abstract_class = true
-                  establish_connection :#{name}
-                  WEIGHT = #{weight} unless const_defined?('WEIGHT')
-                end
-              }, __FILE__, __LINE__
-              slaves << "MultiDb::#{$1.camelize}".constantize
+        slaves = []
+
+        ActiveRecord::Base.configurations.each do |name, values|
+          if name.to_s =~ /#{self.environment}_(slave_database.*)/
+            if values['weight'].blank?
+              weight = 1
+            elsif (v=values['weight'].to_i.abs) > 0
+              weight = v
+            else
+              weight = 1
             end
+            MultiDb.module_eval %Q{
+              class #{$1.camelize} < ActiveRecord::Base
+                self.abstract_class = true
+                establish_connection :#{name}
+                WEIGHT = #{weight} unless const_defined?('WEIGHT')
+              end
+            }, __FILE__, __LINE__
+            slaves << "MultiDb::#{$1.camelize}".constantize
           end
         end
+
+        slaves
       end
 
       private :new
@@ -179,7 +176,7 @@ module MultiDb
     def create_delegation_method!(method)
       self.instance_eval %Q{
         def #{method}(*args, &block)
-          #{'next_reader!' unless self.class.sticky_slave || unsafe?(method)}
+          next_reader! if rand < 0.02
           #{target_method(method)}(:#{method}, *args, &block)
         end
       }, __FILE__, __LINE__
@@ -187,11 +184,6 @@ module MultiDb
 
     def target_method(method)
       return :send_to_master if unsafe?(method)
-      # when running in test with transactional fixtures, we need to
-      # basically run everything against the same connection to make anything work.
-      # So it's gross that we have to basically not test this, but
-      # transactional fixtures literally ruin everything.
-      return :send_to_master if Rails.env.test?
 
       # This will, as a worst case, terminate when we give up on
       # slaves and set current to master, since master always has
