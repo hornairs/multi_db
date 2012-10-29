@@ -35,13 +35,6 @@ module MultiDb
     attr_accessor :master
     tlattr_accessor :master_depth, :current, true
 
-    class << self
-
-      # defaults to Rails.env if multi_db is used with Rails
-      # defaults to 'development' when used outside Rails
-      attr_accessor :environment
-    end
-
     def initialize(master, slaves, scheduler = Scheduler)
       @scheduler    = scheduler.new(slaves)
       @master    = master
