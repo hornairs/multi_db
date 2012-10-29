@@ -28,12 +28,6 @@ module MultiDb
       acc
     }.freeze
 
-    if ActiveRecord.const_defined?(:SessionStore) # >= Rails 2.3
-      DEFAULT_MASTER_MODELS = ['ActiveRecord::SessionStore::Session']
-    else # =< Rails 2.3
-      DEFAULT_MASTER_MODELS = ['CGI::Session::ActiveRecordStore::Session']
-    end
-
     attr_accessor :master
     tlattr_accessor :master_depth, :current, true
 
@@ -43,20 +37,12 @@ module MultiDb
       # defaults to 'development' when used outside Rails
       attr_accessor :environment
 
-      # a list of models that should always go directly to the master
-      #
-      # Example:
-      #
-      #  MultiDb::ConnectionProxy.master_models = ['MySessionStore', 'PaymentTransaction']
-      attr_accessor :master_models
-
       # if master should be the default db
       attr_accessor :defaults_to_master
 
       # Replaces the connection of ActiveRecord::Base with a proxy and
       # establishes the connections to the slaves.
       def setup!(scheduler = Scheduler)
-        self.master_models ||= DEFAULT_MASTER_MODELS
         self.environment   ||= (defined?(Rails) ? Rails.env : 'development')
 
         master = ActiveRecord::Base

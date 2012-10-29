@@ -20,7 +20,6 @@ describe MultiDb::ConnectionProxy do
   
   describe "with standard Scheduler" do
     before(:each) do
-      MultiDb::ConnectionProxy.master_models = ['MasterModel']
       MultiDb::ConnectionProxy.setup!
       @proxy = ActiveRecord::Base.connection_proxy
       @master = @proxy.master.retrieve_connection
