@@ -39,9 +39,7 @@ module MultiDb
     end
 
     def self.report_lag_statistic(lag)
-      return unless defined?(StatsD)
-      key = "MultiDb.slaveLag"
-      StatsD.write(key, lag * 1000, :ms)
+      # hook method
     end
 
     def self.actual_slave_lag(connection)

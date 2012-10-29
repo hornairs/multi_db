@@ -172,7 +172,7 @@ module MultiDb
     end
 
     def perform_query(method, *args, &block)
-      record_statistic(method, current.name)
+      record_statistic(method, current.name) unless IGNORABLE_METHODS[method]
       reconnect_master! if @reconnect && master?
 
       connection = Rails.env.test? ? @master : current
@@ -194,8 +194,7 @@ module MultiDb
     end
 
     def record_statistic(method, connection)
-      return if IGNORABLE_METHODS[method]
-      StatsD.increment("MultiDB.queries.#{connection}", 1, 0.01)
+      # hook method
     end
 
     def needs_sticky_master?(method, sql)
