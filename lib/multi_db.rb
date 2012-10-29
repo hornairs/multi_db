@@ -22,28 +22,12 @@ module MultiDb
     end
   end
 
+  private
+
   def self.slave_classes
     MultiDb.constants.
       map{|c|MultiDb.const_get c}.
       select{|c|c.ancestors.include? ActiveRecord::Base}
   end
 
-
-  def self.config
-    @config ||= Config.new
-  end
-
-  class Config
-    def initialize
-      @only_profile = false
-    end
-
-    def only_profile?
-      @only_profile
-    end
-
-    def only_profile!
-      @only_profile = true
-    end
-  end
 end
