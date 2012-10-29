@@ -50,6 +50,7 @@ module MultiDb
         raise "No slaves databases defined for environment: #{self.environment}" if slaves.empty?
         master.send :include, MultiDb::ActiveRecordExtensions
         ActiveRecord::Observer.send :include, MultiDb::ObserverExtensions
+        ActionController::Base.send :include, MultiDb::Session
         master.connection_proxy = new(master, slaves, scheduler)
         master.logger.info("** multi_db with master and #{slaves.length} slave#{"s" if slaves.length > 1} loaded.")
       end
@@ -156,8 +157,7 @@ module MultiDb
       return if NONCOMMUNICATING_MASTER_METHODS.include?(method)
       return unless String === sql
 
-      sess = Thread.current[:get_session].try(:call)
-      sess ||= Thread.current # if not in a http request, just store in Thread.current
+      sess = MultiDb::Session.current_session
 
       duration = LagMonitor.sticky_master_duration(slave).seconds
       QueryAnalyzer.mark_sticky_tables_in_session(sess, sql, duration)
@@ -200,11 +200,7 @@ module MultiDb
 
     def needs_sticky_master?(method, sql)
       return false unless String === sql
-
-      sess = Thread.current[:get_session].try(:call)
-      sess ||= Thread.current
-
-      QueryAnalyzer.query_requires_sticky?(sess, sql)
+      QueryAnalyzer.query_requires_sticky?(MultiDb::Session.current_session, sql)
     end
 
 
