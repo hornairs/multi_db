@@ -12,6 +12,7 @@ describe MultiDb::QueryAnalyzer do
     q("SELECT * FROM products", "products")
     q("SELECT * from products", "products")
     q("select * from   `products`", "products")
+    q("select * from   `with_underscores`", "with_underscores")
 
     #insert
     q("insert into products (a,b,c) values(1,2,3)", "products")
