@@ -210,22 +210,34 @@ module MultiDb
       QueryAnalyzer.mark_sticky_tables_in_session(sess, sql, duration)
     end
 
+    def send_to_current(method, *args, &block)
+      if needs_sticky_master?(method, args[0])
+        send_to_master(method, *args, &block)
+      else
+        perform_query(method, *args, &block)
+      end
+    end
+
+    def perform_query(method, *args, &block)
+      record_statistic(method, current.name)
+      reconnect_master! if @reconnect && master?
+
+      connection = Rails.env.test? ? @master : current
+      connection.retrieve_connection.send(method, *args, &block)
+    rescue *RECONNECT_EXCEPTIONS, ActiveRecord::StatementInvalid => e
+      raise if e.class == ActiveRecord::StatementInvalid && e.message !~ /server has gone away/
+
+      raise_master_error(e) if master?
+      logger.warn "[MULTIDB] Error reading from slave database"
+      logger.error %(#{e.message}\n#{e.backtrace.join("\n")})
+      @slaves.blacklist!(current)
+      next_reader!
+      retry
+    end
+
     def send_to_master(method, *args, &block)
       stickify(method, args[0]) if unsafe?(method)
-
-      record_statistic(method, "master")
-      reconnect_master! if @reconnect
-      with_master do
-        @master.retrieve_connection.send(method, *args, &block)
-      end
-    rescue *RECONNECT_EXCEPTIONS => e
-      raise_master_error(e)
-    rescue ActiveRecord::StatementInvalid => e
-      if e.message =~ /server has gone away/
-        raise_master_error(e)
-      else
-        raise
-      end
+      with_master { perform_query(method, *args, &block) }
     end
 
     def record_statistic(method, connection)
@@ -242,33 +254,6 @@ module MultiDb
       QueryAnalyzer.query_requires_sticky?(sess, sql)
     end
 
-    def send_to_current(method, *args, &block)
-      if needs_sticky_master?(method, args[0])
-        with_master do
-          return send_to_master(method, *args, &block)
-        end
-      end
-
-      record_statistic(method, current.name)
-
-      reconnect_master! if @reconnect && master?
-      if Rails.env.test?
-        @master.retrieve_connection.send(method, *args, &block)
-      else
-        current.retrieve_connection.send(method, *args, &block)
-      end
-    rescue *RECONNECT_EXCEPTIONS, ActiveRecord::StatementInvalid => e
-      if e.class == ActiveRecord::StatementInvalid && e.message !~ /server has gone away/
-        raise
-      end
-
-      raise_master_error(e) if master?
-      logger.warn "[MULTIDB] Error reading from slave database"
-      logger.error %(#{e.message}\n#{e.backtrace.join("\n")})
-      @slaves.blacklist!(current)
-      next_reader!
-      retry
-    end
 
     def reconnect_master!
       @master.retrieve_connection.reconnect!
