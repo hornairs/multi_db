@@ -60,7 +60,7 @@ module MultiDb
         self.environment   ||= (defined?(Rails) ? Rails.env : 'development')
 
         master = ActiveRecord::Base
-        slaves = init_slaves
+        slaves = MultiDb.init_slaves
         raise "No slaves databases defined for environment: #{self.environment}" if slaves.empty?
         master.send :include, MultiDb::ActiveRecordExtensions
         ActiveRecord::Observer.send :include, MultiDb::ObserverExtensions
@@ -69,39 +69,6 @@ module MultiDb
       end
 
       protected
-
-      # Slave entries in the database.yml must be named like this
-      #   development_slave_database:
-      # or
-      #   development_slave_database1:
-      # or
-      #   production_slave_database_someserver:
-      # These would be available later as MultiDb::SlaveDatabaseSomeserver
-      def init_slaves
-        slaves = []
-
-        ActiveRecord::Base.configurations.each do |name, values|
-          if name.to_s =~ /#{self.environment}_(slave_database.*)/
-            if values['weight'].blank?
-              weight = 1
-            elsif (v=values['weight'].to_i.abs) > 0
-              weight = v
-            else
-              weight = 1
-            end
-            MultiDb.module_eval %Q{
-              class #{$1.camelize} < ActiveRecord::Base
-                self.abstract_class = true
-                establish_connection :#{name}
-                WEIGHT = #{weight} unless const_defined?('WEIGHT')
-              end
-            }, __FILE__, __LINE__
-            slaves << "MultiDb::#{$1.camelize}".constantize
-          end
-        end
-
-        slaves
-      end
 
       private :new
 

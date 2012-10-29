@@ -6,6 +6,7 @@ require 'multi_db/query_cache_compat'
 require 'multi_db/connection_proxy'
 require 'multi_db/lag_monitor'
 require 'multi_db/query_analyzer'
+require 'multi_db/slave_initialization'
 
 module MultiDb
 
