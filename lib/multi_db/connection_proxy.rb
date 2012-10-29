@@ -36,10 +36,11 @@ module MultiDb
     tlattr_accessor :master_depth, :current, true
 
     def initialize(master, slaves, scheduler = Scheduler)
-      @scheduler    = scheduler.new(slaves)
+      @scheduler = scheduler.new(slaves)
       @master    = master
       @reconnect = false
       @query_cache = {}
+
       self.current = @scheduler.current
       self.master_depth = 0
     end
@@ -52,7 +53,6 @@ module MultiDb
       self.master_depth -= 1
       self.current = slave if (master_depth <= 0)
     end
-
 
     def with_slave
       self.current = slave
@@ -95,29 +95,12 @@ module MultiDb
     end
 
     def target_method(method)
-      return :send_to_master if unsafe?(method)
-
-      # This will, as a worst case, terminate when we give up on
-      # slaves and set current to master, since master always has
-      # replica lag of 0.
-      while LagMonitor.replication_lag_too_high?(current)
-        @scheduler.blacklist!(current)
-        next_reader!
-      end
-
-      :send_to_current
+      unsafe?(method) ? :send_to_master : :send_to_current
     end
 
-    NONCOMMUNICATING_MASTER_METHODS = [:open_transactions, :add_transaction_record]
-
-    def stickify(method, sql)
-      return if NONCOMMUNICATING_MASTER_METHODS.include?(method)
-      return unless String === sql
-
-      sess = MultiDb::Session.current_session
-
-      duration = LagMonitor.sticky_master_duration(slave).seconds
-      QueryAnalyzer.mark_sticky_tables_in_session(sess, sql, duration)
+    def send_to_master(method, *args, &block)
+      mark_sticky(method, args[0]) if unsafe?(method)
+      with_master { perform_query(method, *args, &block) }
     end
 
     def send_to_current(method, *args, &block)
@@ -129,8 +112,13 @@ module MultiDb
     end
 
     def perform_query(method, *args, &block)
-      record_statistic(method, current.name) unless IGNORABLE_METHODS[method]
-      reconnect_master! if @reconnect && master?
+      if master?
+        @reconnect and reconnect_master!
+      else
+        find_up_to_date_reader!
+      end
+
+      record_statistic(current.name) unless IGNORABLE_METHODS[method]
 
       connection = Rails.env.test? ? @master : current
       connection.retrieve_connection.send(method, *args, &block)
@@ -145,20 +133,37 @@ module MultiDb
       retry
     end
 
-    def send_to_master(method, *args, &block)
-      stickify(method, args[0]) if unsafe?(method)
-      with_master { perform_query(method, *args, &block) }
+    def find_up_to_date_reader!
+      # This will, as a worst case, terminate when we give up on
+      # slaves and set current to master, since master always has
+      # replica lag of 0.
+      while LagMonitor.replication_lag_too_high?(current)
+        @scheduler.blacklist!(current)
+        next_reader!
+      end
     end
 
-    def record_statistic(method, connection)
+    def record_statistic(connection_name)
       # hook method
     end
 
-    def needs_sticky_master?(method, sql)
-      return false unless String === sql
-      QueryAnalyzer.query_requires_sticky?(MultiDb::Session.current_session, sql)
+    def mark_sticky(method, sql)
+      return if noncommunicating_method?(method, sql)
+      duration = LagMonitor.sticky_master_duration(slave)
+      QueryAnalyzer.mark_sticky_tables_in_session(Session.current_session, sql, duration)
     end
 
+    def needs_sticky_master?(method, sql)
+      return false if noncommunicating_method?(method, sql)
+      QueryAnalyzer.query_requires_sticky?(Session.current_session, sql)
+    end
+
+    NONCOMMUNICATING_MASTER_METHODS = [:open_transactions, :add_transaction_record]
+    def noncommunicating_method?(method, sql)
+      return true if NONCOMMUNICATING_MASTER_METHODS.include?(method)
+      # If the second param is not a string, it does not send a query.
+      !(String === sql)
+    end
 
     def reconnect_master!
       @master.retrieve_connection.reconnect!
