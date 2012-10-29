@@ -1,5 +1,3 @@
-require 'set'
-
 module MultiDb
   module QueryAnalyzer
 
@@ -32,12 +30,12 @@ module MultiDb
         session[:sticky_expires] = expiry
       end
 
-      tables(query).each do |table|
-        session[:sticky_tables][table] = expiry
-      end
-
       session[:sticky_tables].each do |k,v|
         session[:sticky_tables].delete(k) if v < expiry
+      end
+
+      tables(query).each do |table|
+        session[:sticky_tables][table] = expiry
       end
 
       session
