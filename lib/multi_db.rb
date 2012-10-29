@@ -8,6 +8,7 @@ require 'multi_db/lag_monitor'
 require 'multi_db/query_analyzer'
 require 'multi_db/slave_initialization'
 require 'multi_db/session'
+require 'multi_db/railtie'
 
 module MultiDb
 

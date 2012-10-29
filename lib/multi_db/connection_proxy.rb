@@ -40,29 +40,6 @@ module MultiDb
       # defaults to Rails.env if multi_db is used with Rails
       # defaults to 'development' when used outside Rails
       attr_accessor :environment
-
-      # if master should be the default db
-      attr_accessor :defaults_to_master
-
-      # Replaces the connection of ActiveRecord::Base with a proxy and
-      # establishes the connections to the slaves.
-      def setup!(scheduler = Scheduler)
-        self.environment   ||= (defined?(Rails) ? Rails.env : 'development')
-
-        master = ActiveRecord::Base
-        slaves = MultiDb.init_slaves
-        raise "No slaves databases defined for environment: #{self.environment}" if slaves.empty?
-        master.send :include, MultiDb::ActiveRecordExtensions
-        ActiveRecord::Observer.send :include, MultiDb::ObserverExtensions
-        ActionController::Base.send :include, MultiDb::Session
-        master.connection_proxy = new(master, slaves, scheduler)
-        master.logger.info("** multi_db with master and #{slaves.length} slave#{"s" if slaves.length > 1} loaded.")
-      end
-
-      protected
-
-      private :new
-
     end
 
     def initialize(master, slaves, scheduler = Scheduler)
@@ -70,13 +47,8 @@ module MultiDb
       @master    = master
       @reconnect = false
       @query_cache = {}
-      if self.class.defaults_to_master
-        self.current = @master
-        self.master_depth = 1
-      else
-        self.current = @scheduler.current
-        self.master_depth = 0
-      end
+      self.current = @scheduler.current
+      self.master_depth = 0
     end
 
     def slave
