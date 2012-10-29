@@ -44,15 +44,6 @@ module MultiDb
       self.master_depth = 0
     end
 
-    def slave
-      @scheduler.current
-    end
-
-    def scheduler
-      @scheduler
-    end
-
-
     def with_master
       self.current = @master
       self.master_depth += 1
@@ -190,6 +181,10 @@ module MultiDb
 
     def logger
       ActiveRecord::Base.logger
+    end
+
+    def slave
+      @scheduler.current
     end
 
   end
