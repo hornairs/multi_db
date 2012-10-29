@@ -1,3 +1,4 @@
+require 'tlattr_accessors'
 require 'active_record/connection_adapters/abstract/query_cache'
 
 module MultiDb
@@ -9,17 +10,18 @@ module MultiDb
     # Safe methods are those that should either go to the slave ONLY or go
     # to the current active connection.
     SAFE_METHODS = %w(
-      select_all select_one select_value select_values
-      select_rows select verify! raw_connection active? reconnect!
-      disconnect! reset_runtime log log_info table_exists?
-      sanitize_limit quote_table_name ids_in_list_limit quote
-      quote_column_name prefetch_primary_key? case_sensitive_equality_operator
-      table_alias_for columns indexes
+      select_all select_one select_value select_values select_rows select
+      verify! raw_connection active? reconnect!  disconnect! reset_runtime log
+      log_info table_exists?  sanitize_limit quote_table_name ids_in_list_limit
+      quote quote_column_name prefetch_primary_key?
+      case_sensitive_equality_operator table_alias_for columns indexes
     ).inject({}) { |acc, val|
       acc[val.to_sym]=true
       acc
     }.freeze
 
+    # Methods that don't communicate with the database server and don't use and
+    # hidden state that may vary between connections.
     IGNORABLE_METHODS = %w(
       log log_info sanitize_limit quote_table_name quote quote_column_name
       prefetch_primary_key?  case_sensitive_equality_operator table_alias_for
@@ -27,6 +29,8 @@ module MultiDb
       acc[val.to_sym] = true
       acc
     }.freeze
+
+    RECONNECT_EXCEPTIONS = [ActiveRecord::ConnectionNotEstablished]
 
     attr_accessor :master
     tlattr_accessor :master_depth, :current, true
@@ -128,11 +132,10 @@ module MultiDb
     protected
 
     def create_delegation_method!(method)
-      self.instance_eval %Q{
-        def #{method}(*args, &block)
-          #{target_method(method)}(:#{method}, *args, &block)
-        end
-      }, __FILE__, __LINE__
+      target = target_method(method)
+      self.class.send(:define_method, method) { |*args, &block|
+        send(target, method, *args, &block)
+      }
     end
 
     def target_method(method)
@@ -150,8 +153,6 @@ module MultiDb
     end
 
     NONCOMMUNICATING_MASTER_METHODS = [:open_transactions, :add_transaction_record]
-
-    RECONNECT_EXCEPTIONS = [ActiveRecord::ConnectionNotEstablished]
 
     def stickify(method, sql)
       return if NONCOMMUNICATING_MASTER_METHODS.include?(method)
