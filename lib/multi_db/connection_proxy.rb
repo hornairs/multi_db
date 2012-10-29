@@ -62,7 +62,7 @@ module MultiDb
     end
 
     def initialize(master, slaves, scheduler = Scheduler)
-      @slaves    = scheduler.new(slaves)
+      @scheduler    = scheduler.new(slaves)
       @master    = master
       @reconnect = false
       @query_cache = {}
@@ -70,17 +70,17 @@ module MultiDb
         self.current = @master
         self.master_depth = 1
       else
-        self.current = @slaves.current
+        self.current = @scheduler.current
         self.master_depth = 0
       end
     end
 
     def slave
-      @slaves.current
+      @scheduler.current
     end
 
     def scheduler
-      @slaves
+      @scheduler
     end
 
 
@@ -119,7 +119,7 @@ module MultiDb
     # Fails over to the master database if all slaves are unavailable.
     def next_reader!
       return if  master_depth > 0  # don't if in with_master block
-      self.current = @slaves.next
+      self.current = @scheduler.next
     rescue Scheduler::NoMoreItems
       logger.warn "[MULTIDB] All slaves are blacklisted. Reading from master"
       self.current = @master
@@ -142,7 +142,7 @@ module MultiDb
       # slaves and set current to master, since master always has
       # replica lag of 0.
       while LagMonitor.replication_lag_too_high?(current)
-        @slaves.blacklist!(current)
+        @scheduler.blacklist!(current)
         next_reader!
       end
 
@@ -183,7 +183,7 @@ module MultiDb
       raise_master_error(e) if master?
       logger.warn "[MULTIDB] Error reading from slave database"
       logger.error %(#{e.message}\n#{e.backtrace.join("\n")})
-      @slaves.blacklist!(current)
+      @scheduler.blacklist!(current)
       next_reader!
       retry
     end
