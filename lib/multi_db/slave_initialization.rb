@@ -22,6 +22,8 @@ module MultiDb
     Rails.env
   end
 
+
+
   def self.maybe_init_slave(name, values)
     return unless name.to_s =~ /#{environment}_(slave_database.*)/
     klassname = $1.camelize
@@ -30,12 +32,14 @@ module MultiDb
     weight = weight.blank? ? 1 : weight.to_i.abs
     weight.zero? and raise "weight can't be zero"
 
-    klass = Class.new(ActiveRecord::Base) do
-      self.abstract_class = true
-    end
-    klass.send(:establish_connection, name)
-    klass.const_set(:WEIGHT, weight)
+    MultiDb.module_eval <<-CODE, __FILE__, __LINE__
+      class #{klassname} < ActiveRecord::Base
+        self.abstract_class = true
+        establish_connection :#{name}
+        WEIGHT = #{weight} unless const_defined?('WEIGHT')
+      end
+    CODE
 
-    MultiDb.const_set(klassname, klass)
+    "MultiDb::#{klassname}".constantize
   end
 end
