@@ -2,14 +2,14 @@ require './lib/multi_db/scheduler'
 
 describe MultiDb::Scheduler do
 
-  before do
+  before(:each) do
     @items = [5, 7, 4, 8]
-    @scheduler = MultiDb::Scheduler.new(@items.clone)
+    @scheduler = MultiDb::Scheduler.new(@items.clone, 1)
+    @scheduler.next until @scheduler.current == @items.first
   end
 
   it "should return items in a round robin fashion" do
     first = @items.shift
-    @scheduler.next until @scheduler.current == first
     @scheduler.current.should == first
     @items.each do |item|
       @scheduler.next.should == item
@@ -34,9 +34,9 @@ describe MultiDb::Scheduler do
   end
 
   it 'should unblacklist items automatically' do
-    @scheduler = MultiDb::Scheduler.new(@items.clone, 0)
+    @scheduler.current.should == 5
     @scheduler.blacklist!(7)
-    sleep(1)
+    sleep(2)
     @scheduler.next.should == 7
   end
 
@@ -44,6 +44,8 @@ describe MultiDb::Scheduler do
 
     it '#current and #next should return the same item for the same thread' do
       @scheduler.next until @scheduler.current == @items.first
+      # gross, but...
+      @scheduler.instance_variable_get("@_tlattr_current_index").default = 0
       3.times {
         Thread.new do
           @scheduler.current.should == 5
