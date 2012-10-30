@@ -41,8 +41,8 @@ module MultiDb
       @reconnect = false
       @query_cache = {}
 
-      self.current = @scheduler.current
-      self.master_depth = 0
+      self.current = @master
+      self.master_depth = 1
     end
 
     def with_master
