@@ -1,5 +1,6 @@
 require 'rubygems'
 %w[tlattr_accessors active_record yaml erb rspec logger].each {|lib| require lib}
+require 'active_record/connection_adapters/mysql_adapter'
 
 module Rails
   def self.env
