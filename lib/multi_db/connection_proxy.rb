@@ -123,7 +123,7 @@ module MultiDb
       connection = Rails.env.test? ? @master : current
       connection.retrieve_connection.send(method, *args, &block)
     rescue *RECONNECT_EXCEPTIONS, ActiveRecord::StatementInvalid => e
-      raise if e.class == ActiveRecord::StatementInvalid && e.message !~ /server has gone away/
+      raise if ActiveRecord::StatementInvalid === e && e.message !~ /server has gone away/
 
       raise_master_error(e) if master?
       logger.warn "[MULTIDB] Error reading from slave database"
