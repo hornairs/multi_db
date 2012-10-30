@@ -20,7 +20,7 @@ module MultiDb
 
   def self.reconnect_slaves!
     slave_classes.each do |slave|
-      slave.establish_connection
+      slave.establish_connection slave.instance_variable_get("@_multidb_connection_name")
     end
   end
 

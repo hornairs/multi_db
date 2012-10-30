@@ -35,7 +35,8 @@ module MultiDb
     MultiDb.module_eval <<-CODE, __FILE__, __LINE__
       class #{klassname} < ActiveRecord::Base
         self.abstract_class = true
-        establish_connection :#{name}
+        @_multidb_connection_name = :#{name}
+        establish_connection @_multidb_connection_name
         WEIGHT = #{weight} unless const_defined?('WEIGHT')
       end
     CODE
