@@ -30,10 +30,10 @@ describe MultiDb do
       "MultiDb::SlaveDatabase4"
     ]
     klasses.map(&:connection).should == [
-      "test_slave_database_1",
-      "test_slave_database_2",
-      "test_slave_database_3",
-      "test_slave_database_4"
+      :test_slave_database_1,
+      :test_slave_database_2,
+      :test_slave_database_3,
+      :test_slave_database_4
     ]
     klasses.map{|k|k::WEIGHT}.should == [1, 10, 5, 10]
     klasses.each do |k|
