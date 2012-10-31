@@ -48,7 +48,7 @@ module MultiDb
     def connection_stack
       x=_connection_stack
       if Proc === x
-        _connection_stack = x.call
+        self._connection_stack = x.call
       else
         x
       end
@@ -126,7 +126,7 @@ module MultiDb
       retry
     end
 
-    def exception_should_be_handled?(exception)
+    def exception_should_be_handled?(e)
       return false if ActiveRecord::StatementInvalid === e && e.message !~ /server has gone away/
       return false if Mysql2::Error === e && e.message !~ /Can't connect to MySQL server/
       true
