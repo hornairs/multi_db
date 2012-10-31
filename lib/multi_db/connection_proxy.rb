@@ -33,25 +33,22 @@ module MultiDb
     RECONNECT_EXCEPTIONS = [ActiveRecord::ConnectionNotEstablished, Mysql2::Error, ActiveRecord::StatementInvalid]
 
     attr_accessor :master
-    tlattr_accessor :_connection_stack, true
+    tlattr_accessor :_connection_stack, false
 
     def initialize(master, slaves, scheduler_klass = Scheduler)
       @master    = master
       @reconnect = false
       @query_cache = {}
 
-      scheduler = scheduler_klass.new(slaves)
-      self._connection_stack = proc{ConnectionStack.new(@master, scheduler)}
+      @scheduler = scheduler_klass.new(slaves)
     end
 
-    # Work around thread-local storage. Future Refactoring Candidiate.
+    def build_connection_stack
+      ConnectionStack.new(@master, @scheduler)
+    end
+
     def connection_stack
-      x=_connection_stack
-      if Proc === x
-        self._connection_stack = x.call
-      else
-        x
-      end
+      self._connection_stack ||= build_connection_stack
     end
 
     delegate :master?, :with_master, :with_slave, :with_slave_unless_in_transaction, :next_reader!,
