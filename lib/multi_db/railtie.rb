@@ -21,9 +21,9 @@ module MultiDb
     end
 
     initializer 'multi_db.insert' do
-      return if defined?(Rake) # we don't want to do this in rake tasks.
-
-      MultiDb::Railtie.insert!
+      unless defined?(Rake) # we don't want to do this in rake tasks.
+        MultiDb::Railtie.insert!
+      end
     end
 
   end
