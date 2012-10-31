@@ -30,7 +30,7 @@ module MultiDb
       acc
     }.freeze
 
-    RECONNECT_EXCEPTIONS = [ActiveRecord::ConnectionNotEstablished]
+    RECONNECT_EXCEPTIONS = [ActiveRecord::ConnectionNotEstablished, Mysql2::Error, ActiveRecord::StatementInvalid]
 
     attr_accessor :master
     tlattr_accessor :_connection_stack, true
@@ -116,15 +116,20 @@ module MultiDb
       record_statistic(connection_stack.current.name) unless IGNORABLE_METHODS[method]
 
       connection_stack.retrieve_connection.send(method, *args, &block)
-    rescue *RECONNECT_EXCEPTIONS, Mysql2::Error, ActiveRecord::StatementInvalid => e
-      raise if ActiveRecord::StatementInvalid === e && e.message !~ /server has gone away/
-      raise if Mysql2::Error === e && e.message !~ /Can't connect to MySQL server/
+    rescue *RECONNECT_EXCEPTIONS => e
+      raise unless exception_should_be_handled?(e)
 
       raise_master_error(e) if connection_stack.master?
       logger.warn "[MULTIDB] Error reading from slave database"
       logger.error %(#{e.message}\n#{e.backtrace.join("\n")})
       connection_stack.blacklist_current!
       retry
+    end
+
+    def exception_should_be_handled?(exception)
+      return false if ActiveRecord::StatementInvalid === e && e.message !~ /server has gone away/
+      return false if Mysql2::Error === e && e.message !~ /Can't connect to MySQL server/
+      true
     end
 
     def record_statistic(connection_name)
