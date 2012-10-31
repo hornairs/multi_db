@@ -42,7 +42,7 @@ module MultiDb
       end
 
       def hijack_connection
-        logger.info "[MULTIDB] hijacking connection for #{self.to_s}"
+        logger.info "[MULTIDB] hijacking connection for #{self.to_s}" if logger
         class << self
           def connection
             self.connection_proxy
