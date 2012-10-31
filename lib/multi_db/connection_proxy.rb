@@ -116,8 +116,9 @@ module MultiDb
       record_statistic(connection_stack.current.name) unless IGNORABLE_METHODS[method]
 
       connection_stack.retrieve_connection.send(method, *args, &block)
-    rescue *RECONNECT_EXCEPTIONS, ActiveRecord::StatementInvalid => e
+    rescue *RECONNECT_EXCEPTIONS, Mysql2::Error, ActiveRecord::StatementInvalid => e
       raise if ActiveRecord::StatementInvalid === e && e.message !~ /server has gone away/
+      raise if Mysql2::Error === e && e.message !~ /Can't connect to MySQL server/
 
       raise_master_error(e) if connection_stack.master?
       logger.warn "[MULTIDB] Error reading from slave database"
