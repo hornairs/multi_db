@@ -4,6 +4,18 @@ module MultiDb
     def select_all(*a, &b)
       send_to_current(:select_all, *a, &b)
     end
+
+    def select_one(sql, name = nil)
+      result = select_all(sql, name)
+      result.first if result
+    end
+
+    def select_value(sql, name = nil)
+      if result = select_one(sql, name)
+        result.values.first
+      end
+    end
+
     def columns(*a, &b)
       send_to_current(:columns, *a, &b)
     end
