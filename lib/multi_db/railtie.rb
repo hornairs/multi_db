@@ -28,7 +28,9 @@ module MultiDb
     end
 
     initializer 'multi_db.insert' do
-      unless defined?(Rake) # we don't want to do this in rake tasks.
+      if $0 =~ /rake$/ && ARGV.grep(/^db:/).any?
+        puts "\x1b[33mNot initializing multidb for db:* rake task\x1b[0m"
+      else
         MultiDb::Railtie.insert!
       end
     end
