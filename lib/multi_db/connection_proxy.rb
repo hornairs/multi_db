@@ -120,7 +120,7 @@ module MultiDb
 
       connection_stack.retrieve_connection.send(method, *args, &block)
     rescue *RECONNECT_EXCEPTIONS => e
-      raise unless exception_should_be_handled?(e)
+      raise if should_re_raise_exception?(e)
 
       raise_master_error(e) if connection_stack.master?
       logger.warn "[MULTIDB] Error reading from slave database"
@@ -129,10 +129,10 @@ module MultiDb
       retry
     end
 
-    def exception_should_be_handled?(e)
-      return false if ActiveRecord::StatementInvalid === e && e.message !~ /server has gone away/
-      return false if Mysql2::Error === e && e.message !~ /Can't connect to MySQL server/
-      true
+    def should_re_raise_exception?(e)
+      return true if ActiveRecord::StatementInvalid === e && e.message !~ /server has gone away/
+      return true if Mysql2::Error === e && e.message !~ /Can't connect to MySQL server/
+      false
     end
 
     def record_statistic(connection_name)
