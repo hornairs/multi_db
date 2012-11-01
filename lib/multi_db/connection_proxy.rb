@@ -45,11 +45,20 @@ module MultiDb
     attr_accessor :master
 
     def initialize(master, slaves, scheduler_klass = Scheduler)
+      @connection_established
       @master    = master
       @reconnect = false
       @query_cache = {}
 
       @scheduler = scheduler_klass.new(slaves)
+    end
+
+    def establish_initial_connection
+      unless @connection_established
+        @connection_established = true
+        reconnect_master!
+      end
+      self
     end
 
     tlattr_accessor :_connection_stack, false

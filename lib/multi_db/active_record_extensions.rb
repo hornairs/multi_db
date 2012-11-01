@@ -45,7 +45,7 @@ module MultiDb
         logger.info "[MULTIDB] hijacking connection for #{self.to_s}" if logger
         class << self
           def connection
-            self.connection_proxy
+            self.connection_proxy.establish_initial_connection
           end
         end
       end
