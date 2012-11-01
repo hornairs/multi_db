@@ -1,5 +1,15 @@
-require 'tlattr_accessors'
 require 'active_record/connection_adapters/abstract/query_cache'
+require 'active_record/errors'
+require 'active_support/core_ext/module/delegation'
+require 'mysql2'
+
+require 'tlattr_accessors'
+require File.expand_path '../query_cache_compat', __FILE__
+require File.expand_path '../scheduler', __FILE__
+require File.expand_path '../connection_stack', __FILE__
+require File.expand_path '../query_analyzer', __FILE__
+require File.expand_path '../lag_monitor', __FILE__
+require File.expand_path '../session', __FILE__
 
 module MultiDb
   class ConnectionProxy
@@ -33,7 +43,6 @@ module MultiDb
     RECONNECT_EXCEPTIONS = [ActiveRecord::ConnectionNotEstablished, Mysql2::Error, ActiveRecord::StatementInvalid]
 
     attr_accessor :master
-    tlattr_accessor :_connection_stack, false
 
     def initialize(master, slaves, scheduler_klass = Scheduler)
       @master    = master
@@ -43,12 +52,9 @@ module MultiDb
       @scheduler = scheduler_klass.new(slaves)
     end
 
-    def build_connection_stack
-      ConnectionStack.new(@master, @scheduler)
-    end
-
+    tlattr_accessor :_connection_stack, false
     def connection_stack
-      self._connection_stack ||= build_connection_stack
+      self._connection_stack ||= ConnectionStack.new(@master, @scheduler)
     end
 
     delegate :master?, :with_master, :with_slave, :with_slave_unless_in_transaction, :next_reader!,
@@ -60,13 +66,13 @@ module MultiDb
     end
 
     def rollback_db_transaction
-      connection_stack.pop
       perform_query(:rollback_db_transaction)
+      connection_stack.pop
     end
 
     def commit_db_transaction
-      connection_stack.pop
       perform_query(:commit_db_transaction)
+      connection_stack.pop
     end
 
     # Calls the method on master/slave and dynamically creates a new
@@ -97,7 +103,7 @@ module MultiDb
 
     def send_to_current(method, *args, &block)
       if needs_sticky_master?(method, args[0])
-        send_to_master(method, *args, &block)
+        with_master { perform_query(method, *args, &block) }
       else
         perform_query(method, *args, &block)
       end
