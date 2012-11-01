@@ -11,7 +11,7 @@ module MultiDb
       proxy = MultiDb::ConnectionProxy.new(ActiveRecord::Base, slaves)
       ActiveRecord::Base.connection_proxy = proxy
 
-      after_init = ->{
+      after_init = ->{ |*args|
         ActiveRecord::Observer.send :include, MultiDb::ObserverExtensions
         ActionController::Base.send :include, MultiDb::Session
 
