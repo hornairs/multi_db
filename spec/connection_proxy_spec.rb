@@ -18,6 +18,10 @@ describe MultiDb::ConnectionProxy do
     Thread.current[:sticky_expires] = nil
     Thread.current[:sticky_tables] = nil
 
+    logger = stub(warn: nil, error: nil, fatal: nil)
+    MultiDb::ConnectionProxy.any_instance.stub(logger: logger)
+    MultiDb::ConnectionStack.any_instance.stub(logger: logger)
+
     proxy.connection_stack.push_slave
   end
 
@@ -47,15 +51,55 @@ describe MultiDb::ConnectionProxy do
 
   describe 'handling database errors' do
 
-    it 'blacklists the slave on AR::ConnectionNotEstablished'
+    it 'switches to the next slave when a connection error happens' do
+      my_proxy = MultiDb::ConnectionProxy.new(master, [slave1, slave2])
+      my_proxy.with_slave do
+        slave1.should_receive(:select_all).and_raise(ActiveRecord::ConnectionNotEstablished)
+        slave2.should_receive(:select_all).and_raise(ActiveRecord::ConnectionNotEstablished)
+        master.should_receive(:select_all)
+        my_proxy.select_all("SELECT 1")
+      end
+    end
 
-    it 'blacklists the slave on "can\'t connect to MySQL server'
+    it 'blows up when the master raises an error that would be recoverable for a slave' do
+      slave1.should_receive(:select_all).and_raise(ActiveRecord::ConnectionNotEstablished)
+      master.should_receive(:select_all).and_raise(ActiveRecord::ConnectionNotEstablished)
+      lambda {
+        proxy.select_all("SELECT 1")
+      }.should raise_error(ActiveRecord::ConnectionNotEstablished)
+    end
 
-    it 'blacklists the slave on "server has gone away"'
+    it 'blacklists the slave on AR::ConnectionNotEstablished' do
+      slave1.should_receive(:select_all).and_raise(ActiveRecord::ConnectionNotEstablished)
+      master.should_receive(:select_all)
+      proxy.select_all("SELECT 1")
+    end
 
-    it 'reraises other AR::StatementInvalid errors'
+    it 'blacklists the slave on "can\'t connect to MySQL server' do
+      slave1.should_receive(:select_all).and_raise(Mysql2::Error.new("Can't connect to MySQL server"))
+      master.should_receive(:select_all)
+      proxy.select_all("SELECT 1")
+    end
 
-    it 'reraises other Mysql2::Error errors'
+    it 'blacklists the slave on "server has gone away"' do
+      slave1.should_receive(:select_all).and_raise(ActiveRecord::StatementInvalid.new("server has gone away"))
+      master.should_receive(:select_all)
+      proxy.select_all("SELECT 1")
+    end
+
+    it 'reraises other AR::StatementInvalid errors' do
+      slave1.should_receive(:select_all).and_raise(ActiveRecord::StatementInvalid.new("invalid sql"))
+      lambda {
+        proxy.select_all("SELECT 1")
+      }.should raise_error(ActiveRecord::StatementInvalid)
+    end
+
+    it 'reraises other Mysql2::Error errors' do
+      slave1.should_receive(:select_all).and_raise(Mysql2::Error.new("SOMETHING BROKE"))
+      lambda {
+        proxy.select_all("SELECT 1")
+      }.should raise_error(Mysql2::Error)
+    end
 
   end
 
