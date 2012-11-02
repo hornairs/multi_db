@@ -41,12 +41,8 @@ module MultiDb
           @dont_kill_multidb = true
         end
 
-        if !@dont_kill_multidb && methods(false).include?(:_actual_connection_before_multidb)
-          class << self
-            remove_method :connection
-            alias_method :connection, :retrieve_connection
-            remove_method :_actual_connection_before_multidb
-          end
+        if !@dont_kill_multidb
+          unhijack_connection
         end
 
         establish_connection_without_proxy(config)
@@ -75,6 +71,19 @@ module MultiDb
       def inherited(child)
         super
         child.hijack_connection
+      end
+
+      def unhijack_connection(recurse = true)
+        return unless methods(false).include?(:_actual_connection_before_multidb)
+        class << self
+          remove_method :connection
+          alias_method :connection, :retrieve_connection
+          remove_method :_actual_connection_before_multidb
+        end
+        return unless recurse
+        descendants.each do |klass|
+          klass.unhijack_connection(false)
+        end
       end
 
       def hijack_connection
