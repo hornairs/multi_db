@@ -28,11 +28,11 @@ module MultiDb
       }
     end
 
-    def self.cache_fetch(key, expiry = 10, &block)
+    def self.cache_fetch(key, expiry = 1, &block)
       @lag_cache ||= {}
       value, expire_time = @lag_cache[key]
       if expire_time.nil? || expire_time < Time.now
-        value = Rails.cache.fetch(key, :expires_in => expiry / 2, &block)
+        value = Rails.cache.fetch(key, :expires_in => expiry, &block)
         @lag_cache[key] = [value, Time.now + expiry]
       end
       value
