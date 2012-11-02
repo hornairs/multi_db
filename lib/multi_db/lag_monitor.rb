@@ -6,7 +6,7 @@ module MultiDb
     # no latency, we still bank on there being a little bit.
     REPLICA_LAG_THRESHOLD      = 10 # seconds
     STICKY_DURATION_MULTIPLIER = 1.2 # coefficient
-    STICKY_DURATION_PADDING    = 0.5 # seconds
+    STICKY_DURATION_PADDING    = 5 # seconds
 
     # How long, after doing a write, should all reads be sent to the master?
     def self.sticky_master_duration(connection) # in seconds
@@ -28,11 +28,11 @@ module MultiDb
       }
     end
 
-    def self.cache_fetch(key, expiry = 1, &block)
+    def self.cache_fetch(key, expiry = 10, &block)
       @lag_cache ||= {}
       value, expire_time = @lag_cache[key]
       if expire_time.nil? || expire_time < Time.now
-        value = Rails.cache.fetch(key, :expires_in => expiry, &block)
+        value = Rails.cache.fetch(key, :expires_in => expiry / 2, &block)
         @lag_cache[key] = [value, Time.now + expiry]
       end
       value
