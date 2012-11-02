@@ -7,7 +7,7 @@ module MultiDb
     KEYWORD = /(?:JOIN|FROM|INTO|UPDATE)/i
     TABLE_NAME = /`?(\w+)`?/
     MORE_TABLES = /(?:\s*,\s*`?(?:\w+)`?)/ # for e.g.: SELECT * FROM `a`, `b`
-    TABLE_MATCH = /#{KEYWORD}\s+#{TABLE_NAME}(#{MORE_TABLES}*)/
+    TABLE_MATCH = /#{KEYWORD}\s+#{TABLE_NAME}(#{MORE_TABLES}*)/io
 
     def self.query_requires_sticky?(session, query)
       exp = session[:sticky_expires]
