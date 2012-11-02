@@ -6,7 +6,7 @@ module MultiDb
     # no latency, we still bank on there being a little bit.
     REPLICA_LAG_THRESHOLD      = 10 # seconds
     STICKY_DURATION_MULTIPLIER = 1.2 # coefficient
-    STICKY_DURATION_PADDING    = 5 # seconds
+    STICKY_DURATION_PADDING    = 3 # seconds
 
     # How long, after doing a write, should all reads be sent to the master?
     def self.sticky_master_duration(connection) # in seconds
