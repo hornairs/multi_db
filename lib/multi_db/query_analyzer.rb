@@ -1,3 +1,5 @@
+require 'set'
+
 module MultiDb
   module QueryAnalyzer
 
