@@ -44,12 +44,17 @@ module MultiDb
       def hijack_connection
         if name == "ReadonlyDatabase"
           logger.info "[MULTIDB] \x1b[31mNOT\x1b[0m hijacking connection for #{self.to_s}" if logger
-          return
-        end
-        logger.info "[MULTIDB] hijacking connection for #{self.to_s}" if logger
-        class << self
-          def connection
-            self.connection_proxy.establish_initial_connection
+          class << self
+            def connection
+              self.retrieve_connection
+            end
+          end
+        else
+          logger.info "[MULTIDB] hijacking connection for #{self.to_s}" if logger
+          class << self
+            def connection
+              self.connection_proxy.establish_initial_connection
+            end
           end
         end
       end
