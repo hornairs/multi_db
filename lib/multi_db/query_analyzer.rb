@@ -11,13 +11,13 @@ module MultiDb
 
     def self.query_requires_sticky?(session, query)
       exp = session[:sticky_expires]
-      return false if exp.nil? || exp <= Time.now.to_i
+      return false if exp.nil? || exp <= Speedytime.current
 
       return true if TEMP_DISABLE
 
       stickied = session[:sticky_tables] || {}
       tables(query).each do |asked_for|
-        if stickied[asked_for] && stickied[asked_for] >= Time.now.to_i
+        if stickied[asked_for] && stickied[asked_for] >= Speedytime.current
           return true
         end
       end
@@ -28,7 +28,7 @@ module MultiDb
     def self.mark_sticky_tables_in_session(session, query, timeout)
       session[:sticky_tables] ||= {}
 
-      expiry = Time.now.to_i + timeout.to_i
+      expiry = Speedytime.current + timeout.to_i
       if session[:sticky_expires].nil? || session[:sticky_expires] < expiry
         session[:sticky_expires] = expiry
       end

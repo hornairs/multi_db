@@ -23,7 +23,7 @@ module MultiDb
     private
 
     def self.slave_lag(klass)
-      cache_fetch("slave_lag:#{klass.name}") {
+      cache_fetch("multidb:slave_lag:#{klass.name}") {
         actual_slave_lag(klass)
       }
     end
@@ -31,9 +31,9 @@ module MultiDb
     def self.cache_fetch(key, expiry = 10, &block)
       @lag_cache ||= {}
       value, expire_time = @lag_cache[key]
-      if expire_time.nil? || expire_time < Time.now
+      if expire_time.nil? || expire_time < Speedytime.current
         value = Rails.cache.fetch(key, :expires_in => expiry / 2, &block)
-        @lag_cache[key] = [value, Time.now + expiry]
+        @lag_cache[key] = [value, Speedytime.current + expiry]
       end
       value
     end

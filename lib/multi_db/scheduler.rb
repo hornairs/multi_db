@@ -13,14 +13,14 @@ module MultiDb
     def initialize(items, blacklist_timeout = 30)
       @n = items.length
       @items     = items
-      @blacklist = Array.new(@n, Time.at(0))
+      @blacklist = Array.new(@n, 0)
       @blacklist_timeout = blacklist_timeout
       self.current_index = proc{rand(@n)}
     end
 
     def blacklist!(item)
       index = @items.index(item)
-      @blacklist[index] = Time.now if index
+      @blacklist[index] = Speedytime.current if index
     end
 
     def current
@@ -38,7 +38,7 @@ module MultiDb
 
     def next
       previous = current_index_i
-      threshold = Time.now - @blacklist_timeout
+      threshold = Speedytime.current - @blacklist_timeout
       until(@blacklist[next_index!] < threshold) do
         raise NoMoreItems, 'All items are blacklisted' if current_index == previous
       end
