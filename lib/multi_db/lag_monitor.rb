@@ -4,7 +4,7 @@ module MultiDb
     # There's no especially solid reasoning behind these factors.
     # STICKY_DURATION_PADDING ensures that even if a slave is reporting
     # no latency, we still bank on there being a little bit.
-    REPLICA_LAG_THRESHOLD      = 10000 # seconds
+    REPLICA_LAG_THRESHOLD      = 10 # seconds
     STICKY_DURATION_MULTIPLIER = 1.2 # coefficient
     STICKY_DURATION_PADDING    = 3 # seconds
 
