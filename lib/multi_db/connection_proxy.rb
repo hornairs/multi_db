@@ -66,7 +66,7 @@ module MultiDb
       self._connection_stack ||= ConnectionStack.new(@master, @scheduler)
     end
 
-    delegate :master?, :with_master, :with_slave, :with_slave_unless_in_transaction, :next_reader!,
+    delegate :master?, :with_master, :with_slave, :with_slave_unless_in_transaction, :next_reader!, :reset_blacklist,
       to: :connection_stack
 
     def begin_db_transaction
