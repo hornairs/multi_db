@@ -19,7 +19,8 @@ module MultiDb
     end
 
     def blacklist!(item)
-      @blacklist[@items.index(item)] = Time.now
+      index = @items.index(item)
+      @blacklist[index] = Time.now if index
     end
 
     def current

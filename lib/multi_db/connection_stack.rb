@@ -60,7 +60,7 @@ module MultiDb
       # This will, as a worst case, terminate when we give up on
       # slaves and set current to master, since master always has
       # replica lag of 0.
-      while LagMonitor.replication_lag_too_high?(current)
+      while current != @master && LagMonitor.replication_lag_too_high?(current)
         blacklist_current!
       end
     end
