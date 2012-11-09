@@ -13,7 +13,7 @@ module MultiDb
     def initialize(items, blacklist_timeout = 30)
       @n = items.length
       @items     = items
-      @blacklist = Array.new(@n, 0)
+      reset_blacklist
       @blacklist_timeout = blacklist_timeout
       self.current_index = proc{rand(@n)}
     end
@@ -21,6 +21,10 @@ module MultiDb
     def blacklist!(item)
       index = @items.index(item)
       @blacklist[index] = Speedytime.current if index
+    end
+
+    def reset_blacklist
+      @blacklist = Array.new(@n, 0)
     end
 
     def current

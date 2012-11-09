@@ -70,6 +70,10 @@ module MultiDb
       next_reader!
     end
 
+    def reset_blacklist
+      @scheduler.reset_blacklist
+    end
+
     # Switches to the next slave database for read operations.
     # Fails over to the master database if all slaves are unavailable.
     def next_reader!
