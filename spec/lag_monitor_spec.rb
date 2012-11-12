@@ -46,14 +46,4 @@ describe MultiDb::LagMonitor do
 
   end
 
-  specify {
-    connection = stub
-    connection_class = stub(retrieve_connection: connection)
-
-    MultiDb::LagMonitor.should_receive(:slave_lag_from_mysql).with(connection).
-      and_return(nil)
-
-    subject.replication_lag_too_high?(connection_class).should be_true
-  }
-
 end
