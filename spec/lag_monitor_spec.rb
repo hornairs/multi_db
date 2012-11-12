@@ -4,7 +4,7 @@ describe MultiDb::LagMonitor do
 
   describe "sticky_master_duration" do
 
-    it "returns 1 second even when there is no replica lag" do
+    it "returns 3 seconds even when there is no replica lag" do
       subject.stub(slave_lag: 0)
       subject.sticky_master_duration(anything).should == 3
     end
