@@ -59,6 +59,8 @@ describe MultiDb::QueryAnalyzer do
     end
 
     it "marks tables as sticky." do
+      pending "Waiting until feature is enabled :("
+
       session = subject.mark_sticky_tables_in_session({}, "DELETE FROM products, images", 1)
       exp = {
         sticky_expires: CURRENT_TIME+1,
@@ -71,6 +73,8 @@ describe MultiDb::QueryAnalyzer do
     end
 
     it "adds stickies to an existing session and purges expired stickies" do
+      pending "Waiting until feature is enabled :("
+
       prev = {
         sticky_expires: CURRENT_TIME-100,
         sticky_tables: {

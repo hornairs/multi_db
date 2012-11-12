@@ -12,7 +12,11 @@ module MultiDb
 
     # How long, after doing a write, should all reads be sent to the master?
     def self.sticky_master_duration(connection) # in seconds
-      ((slave_lag(connection) * STICKY_DURATION_MULTIPLIER) + STICKY_DURATION_PADDING).ceil
+      lag = slave_lag(connection)
+      # If the connection isn't replicating, lock to master for a minute or so?
+      lag = REPLICA_LAG_THRESHOLD * 5 if lag == NotReplicating
+
+      ((lag * STICKY_DURATION_MULTIPLIER) + STICKY_DURATION_PADDING).ceil
     end
 
     # In exceptionally slow replication scenarios, we'd rather just redirect
