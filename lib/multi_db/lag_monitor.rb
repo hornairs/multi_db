@@ -8,6 +8,8 @@ module MultiDb
     STICKY_DURATION_MULTIPLIER = 1.2 # coefficient
     STICKY_DURATION_PADDING    = 3 # seconds
 
+    NotReplicating = :not_replicating
+
     # How long, after doing a write, should all reads be sent to the master?
     def self.sticky_master_duration(connection) # in seconds
       ((slave_lag(connection) * STICKY_DURATION_MULTIPLIER) + STICKY_DURATION_PADDING).ceil
@@ -17,7 +19,8 @@ module MultiDb
     # everything to master and fail hard than show especially inconsistent
     # application state.
     def self.replication_lag_too_high?(connection)
-      slave_lag(connection) > REPLICA_LAG_THRESHOLD
+      lag = slave_lag(connection)
+      lag == NotReplicating || lag > REPLICA_LAG_THRESHOLD
     end
 
     private
@@ -46,11 +49,15 @@ module MultiDb
       connection = connection_class.retrieve_connection
       result = connection.execute("SHOW SLAVE STATUS")
       index = result.fields.index("Seconds_Behind_Master")
-      lag = result.first.try(:[], index).to_i
+      lag = result.first.try(:[], index)
 
-      report_lag_statistic(connection_class.name, lag)
+      # If the database is not currently replicating,
+      # SHOW SLAVE STATUS returns no rows.
+      return NotReplicating if lag.nil?
 
-      lag
+      report_lag_statistic(connection_class.name, lag.to_i)
+
+      lag.to_i
     end
 
   end
