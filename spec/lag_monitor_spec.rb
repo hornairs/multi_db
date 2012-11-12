@@ -29,7 +29,7 @@ describe MultiDb::LagMonitor do
       subject.replication_lag_too_high?(anything).should be_false
     end
 
-    it "it true if the slave is not replicating" do
+    it "is true if the slave is not replicating" do
       subject.stub(slave_lag: MultiDb::LagMonitor::NotReplicating)
       subject.replication_lag_too_high?(anything).should be_true
     end
@@ -45,5 +45,15 @@ describe MultiDb::LagMonitor do
     end
 
   end
+
+  specify {
+    connection = stub
+    connection_class = stub(retrieve_connection: connection)
+
+    MultiDb::LagMonitor.should_receive(:slave_lag_from_mysql).with(connection).
+      and_return(nil)
+
+    subject.replication_lag_too_high?(connection_class).should be_true
+  }
 
 end

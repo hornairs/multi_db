@@ -47,9 +47,7 @@ module MultiDb
 
     def self.actual_slave_lag(connection_class)
       connection = connection_class.retrieve_connection
-      result = connection.execute("SHOW SLAVE STATUS")
-      index = result.fields.index("Seconds_Behind_Master")
-      lag = result.first.try(:[], index)
+      lag = slave_lag_from_mysql(connection)
 
       # If the database is not currently replicating,
       # SHOW SLAVE STATUS returns no rows.
@@ -58,6 +56,12 @@ module MultiDb
       report_lag_statistic(connection_class.name, lag.to_i)
 
       lag.to_i
+    end
+
+    def self.slave_lag_from_mysql(connection)
+      result = connection.execute("SHOW SLAVE STATUS")
+      index = result.fields.index("Seconds_Behind_Master")
+      lag = result.first.try(:[], index)
     end
 
   end
