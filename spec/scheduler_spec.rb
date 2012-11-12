@@ -34,9 +34,10 @@ describe MultiDb::Scheduler do
   end
 
   it 'should unblacklist items automatically' do
+    Speedytime.stub(current: 1000)
     @scheduler.current.should == 5
     @scheduler.blacklist!(7)
-    sleep(2)
+    Speedytime.stub(current: 1002)
     @scheduler.next.should == 7
   end
 
