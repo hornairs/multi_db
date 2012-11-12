@@ -1,3 +1,4 @@
+require 'speedytime'
 require 'tlattr_accessors'
 require 'multi_db/scheduler'
 require 'multi_db/active_record_extensions'
