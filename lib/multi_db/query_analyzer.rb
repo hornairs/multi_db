@@ -1,3 +1,5 @@
+require 'speedytime'
+
 module MultiDb
   module QueryAnalyzer
 

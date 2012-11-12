@@ -38,8 +38,7 @@ describe MultiDb::QueryAnalyzer do
     CURRENT_TIME = 1000
 
     before do
-      now = mock(to_i: CURRENT_TIME)
-      Time.stub(now: now)
+      Speedytime.stub(current: CURRENT_TIME)
     end
 
     it "doesn't require sticky on a fresh read" do

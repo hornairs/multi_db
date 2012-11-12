@@ -1,4 +1,5 @@
 require 'tlattr_accessors'
+require 'speedytime'
 require 'active_support/core_ext/module/delegation'
 
 module MultiDb
