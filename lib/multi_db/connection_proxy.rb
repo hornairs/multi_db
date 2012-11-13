@@ -48,7 +48,7 @@ module MultiDb
       @connection_established
       @master    = master
       @reconnect = false
-      @query_cache = {}
+      @query_cache = Hash.new { |h,sql| h[sql] = {} }
 
       @scheduler = scheduler_klass.new(slaves)
     end
