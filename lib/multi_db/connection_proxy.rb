@@ -16,7 +16,7 @@ module MultiDb
     include ActiveRecord::ConnectionAdapters::QueryCache
     extend ThreadLocalAccessors
 
-    STICKY_MASTER_DURATION = 5 * 60 # 5 minutes
+    STICKY_MASTER_DURATION = 10 * 60 # 10 minutes
 
     # Safe methods are those that should either go to the slave ONLY or go
     # to the current active connection.
