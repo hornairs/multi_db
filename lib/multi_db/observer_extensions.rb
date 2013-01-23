@@ -8,7 +8,7 @@ module MultiDb
     def update_with_masterdb(observed_method, *objects) #:nodoc:
       klass = objects[0].class == Class ? objects[0] : objects[0].class
 
-      if klass.connection.respond_to?(:with_master)
+      if klass.respond_to?(:connection) && klass.connection.respond_to?(:with_master)
         klass.connection.with_master do
           update_without_masterdb(observed_method, *objects)
         end
